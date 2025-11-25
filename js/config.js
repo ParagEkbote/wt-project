@@ -39,7 +39,7 @@ export const CONFIG = {
     //
     // If you don’t have your own server yet, httpbin works:
     uploadTestUrls: [
-        "https://httpbin.org/post"
+        "https://holy-truth-870a.paragekbote23.workers.dev/"
     ],
 
     // Max retries before switching to next upload URL
