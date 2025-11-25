@@ -1,111 +1,50 @@
-export const SpeedTest = {
-    async testPing() {
-        const results = [];
+// ---------------------------------------------------------
+// CONFIG.JS — Global configuration for speedtest.js
+// ---------------------------------------------------------
+// This file MUST export a CONFIG object because speedtest.js
+// imports it like:  import { CONFIG } from "./config.js"
+// ---------------------------------------------------------
 
-        for (let i = 0; i < CONFIG.pingTests; i++) {
-            const start = performance.now();
-            try {
-                await fetch(CONFIG.pingTestUrl + '?t=' + Date.now(), {
-                    method: 'HEAD',
-                    cache: 'no-cache'
-                });
-                results.push(performance.now() - start);
-            } catch {
-                results.push(0);
-            }
-        }
+export const CONFIG = {
+    // -------------------------
+    // PING SETTINGS
+    // -------------------------
 
-        const jitter = this.calculateJitter(results);
-        return {
-            ping: results.reduce((a, b) => a + b, 0) / results.length,
-            jitter
-        };
-    },
+    // Number of ping tests to run
+    pingTests: 5,
 
-    calculateJitter(pings) {
-        if (pings.length < 2) return 0;
+    // HEAD request target URL for ping measurement
+    // This should be a very fast endpoint. Cloudflare works well.
+    pingTestUrl: "https://cloudflare.com/cdn-cgi/trace",
 
-        let diff = 0;
-        for (let i = 1; i < pings.length; i++) {
-            diff += Math.abs(pings[i] - pings[i - 1]);
-        }
 
-        return diff / (pings.length - 1);
-    },
+    // -------------------------
+    // DOWNLOAD SETTINGS
+    // -------------------------
 
-    async testDownload() {
-        const url = CONFIG.downloadTestUrl + '?t=' + Date.now();
-        const start = performance.now();
+    // The URL of a test file used for download speed.
+    // Place `testfile.bin` in your repo root or replace with a CDN file.
+    downloadTestUrl: "https://speed.cloudflare.com/__down?bytes=20000000",
 
-        try {
-            const response = await fetch(url, { cache: 'no-cache' });
-            const blob = await response.blob();
-            const sec = (performance.now() - start) / 1000;
-            return (blob.size * 8 / sec) / (1024 * 1024);
-        } catch {
-            return 0;
-        }
-    },
 
-    async testUpload() {
-        const uploadSizeBytes = CONFIG.uploadTestSizeKB * 1024;
-        const data = this.generateTestData(uploadSizeBytes);
+    // -------------------------
+    // UPLOAD SETTINGS
+    // -------------------------
 
-        // Iterate through URLs
-        for (const url of CONFIG.uploadTestUrls) {
-            console.log(`Trying upload URL: ${url}`);
+    // Size of upload test payload
+    uploadTestSizeKB: 1024,   // 1 MB
 
-            // Retry loop for each URL
-            for (let attempt = 1; attempt <= CONFIG.maxUploadRetries; attempt++) {
-                try {
-                    console.log(`Attempt ${attempt} to ${url}`);
+    // Endpoint(s) that accept POST uploads.
+    // First working URL is used; others are fallback.
+    //
+    // If you don’t have your own server yet, httpbin works:
+    uploadTestUrls: [
+        "https://httpbin.org/post"
+    ],
 
-                    const speed = await new Promise((resolve, reject) => {
-                        const start = performance.now();
-                        const xhr = new XMLHttpRequest();
+    // Max retries before switching to next upload URL
+    maxUploadRetries: 3,
 
-                        xhr.addEventListener('load', () => {
-                            if (xhr.status >= 200 && xhr.status < 300) {
-                                const end = performance.now();
-                                const durationSeconds = (end - start) / 1000;
-                                const bitsUploaded = uploadSizeBytes * 8;
-                                const speedMbps =
-                                    (bitsUploaded / durationSeconds) / (1024 * 1024);
-                                resolve(speedMbps);
-                            } else {
-                                reject(new Error(`HTTP ${xhr.status}`));
-                            }
-                        });
-
-                        xhr.addEventListener('error', () => reject(new Error("Network error")));
-                        xhr.addEventListener('timeout', () => reject(new Error("Timeout")));
-
-                        xhr.open("POST", url);
-                        xhr.timeout = 10000;
-                        xhr.send(data);
-                    });
-
-                    // SUCCESS → return speed
-                    return speed;
-
-                } catch (err) {
-                    console.warn(`Upload attempt ${attempt} to ${url} failed: ${err.message}`);
-
-                    // If more retries available → wait and retry
-                    if (attempt < CONFIG.maxUploadRetries) {
-                        await new Promise(res => setTimeout(res, CONFIG.retryBackoffMs));
-                    }
-                }
-            }
-
-            console.warn(`All retries failed for ${url}, trying next URL...`);
-        }
-
-        console.error("All upload URLs failed.");
-        return 0; // UI will show N/A
-    },
-
-    generatePayload(size) {
-        return new Blob([new Uint8Array(size)]);
-    }
+    // Delay between retries (ms)
+    retryBackoffMs: 500
 };
