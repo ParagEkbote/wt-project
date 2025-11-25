@@ -1,5 +1,3 @@
-import { CONFIG } from "./config.js";
-
 export const SpeedTest = {
     async testPing() {
         const results = [];
